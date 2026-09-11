@@ -91,7 +91,7 @@ Three.js `CylinderGeometry(radiusTop, radiusBottom, height)` 默认轴线沿 **Y
 
 ## cone（圆台 / 圆锥）
 
-对应 PDMS 的 SNOU。第 4 期实现；约定本期定稿。
+对应 PDMS 的 SNOU。第 4 期已实现。
 
 ### 参数
 
@@ -113,7 +113,7 @@ Three.js `CylinderGeometry(radiusTop, radiusBottom, height)` 默认轴线沿 **Y
 
 ## sphere（球）
 
-第 4 期实现；约定本期定稿。
+第 4 期已实现。
 
 ### 参数
 
@@ -133,7 +133,7 @@ Three.js `SphereGeometry(radius)` 中心已在原点。**无需旋转**。
 
 ## torus（圆环）
 
-对应 PDMS 的 CTOR。第 4 期实现；约定本期定稿。
+对应 PDMS 的 CTOR。第 4 期已实现。
 
 ### 参数
 

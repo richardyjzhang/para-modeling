@@ -28,6 +28,9 @@ let resizeObserver: ResizeObserver | null = null;
 const MESH_COLORS: Record<string, number> = {
   box: 0x3b82f6,
   cylinder: 0x10b981,
+  cone: 0xf59e0b,
+  sphere: 0x8b5cf6,
+  torus: 0x06b6d4,
 };
 
 /** 同步容器尺寸到相机 */

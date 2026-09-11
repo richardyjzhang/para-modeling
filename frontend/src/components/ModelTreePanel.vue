@@ -30,7 +30,7 @@ const store = useModelTreeStore();
       </li>
     </ul>
     <p v-else class="px-3 py-3 text-xs leading-5 text-slate-400">
-      还没有图元。点顶部按钮往场景里添加长方体或圆柱。
+      还没有图元。点顶部按钮往场景里添加图元。
     </p>
   </aside>
 </template>

@@ -4,6 +4,7 @@ import { fetchHello } from "./api/hello";
 import ModelTreePanel from "./components/ModelTreePanel.vue";
 import PropertyPanel from "./components/PropertyPanel.vue";
 import Viewport3d from "./components/Viewport3d.vue";
+import { PLACEABLE_SHAPES, SHAPE_LABEL } from "./core/types";
 import { useModelTreeStore } from "./stores/modelTree";
 
 const store = useModelTreeStore();
@@ -30,22 +31,17 @@ onMounted(async () => {
       <div class="flex items-center gap-3">
         <div class="flex items-baseline gap-3">
           <h1 class="text-sm font-semibold text-slate-900">para-modeling</h1>
-          <span class="text-xs text-slate-400">第 3 期 · 摆放图元</span>
+          <span class="text-xs text-slate-400">第 4 期 · 摆放图元（下）</span>
         </div>
         <div class="flex items-center gap-1.5">
           <button
+            v-for="shape in PLACEABLE_SHAPES"
+            :key="shape"
             type="button"
             class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
-            @click="store.addPrimitive('box')"
+            @click="store.addPrimitive(shape)"
           >
-            添加长方体
-          </button>
-          <button
-            type="button"
-            class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
-            @click="store.addPrimitive('cylinder')"
-          >
-            添加圆柱
+            添加{{ SHAPE_LABEL[shape] }}
           </button>
         </div>
       </div>

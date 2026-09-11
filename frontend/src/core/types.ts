@@ -1,10 +1,7 @@
 /** 模型树节点类型，与 docs/conventions.md §3.1 一致。 */
 export type NodeType = "group" | "primitive" | "instance";
 
-/**
- * 已定稿的基础图元。第 3 期 UI 只创建 box / cylinder；
- * 其余 shape 预埋类型，几何工厂在第 4 期补全。
- */
+/** 五种基础图元。 */
 export type PrimitiveShape = "box" // 长方体
   | "cylinder" // 圆柱
   | "cone" // 圆台
@@ -97,14 +94,22 @@ export type InstanceNode = ModelNodeBase & {
 
 export type ModelNode = GroupNode | PrimitiveNode | InstanceNode;
 
-/** 第 3 期工具栏可摆放的图元。 */
-export type PlaceableShape = "box" | "cylinder";
+/** 工具栏可摆放的图元（第 4 期五种齐全）。 */
+export type PlaceableShape = PrimitiveShape;
 
-export const PLACEABLE_SHAPES: readonly PlaceableShape[] = ["box", "cylinder"];
+export const PLACEABLE_SHAPES: readonly PlaceableShape[] = [
+  "box",
+  "cylinder",
+  "cone",
+  "sphere",
+  "torus",
+];
 
 export type DimField = {
   key: string;
   label: string;
+  /** 为 true 时允许求值为 0（目前仅圆台顶半径，0 即圆锥）。 */
+  allowZero?: boolean;
 };
 
 /** 属性面板用：每个 shape 要编辑的尺寸字段（标签给中文）。 */
@@ -120,7 +125,7 @@ export const DIM_FIELDS: Record<PrimitiveShape, readonly DimField[]> = {
   ],
   cone: [
     { key: "radiusBottom", label: "底半径" },
-    { key: "radiusTop", label: "顶半径" },
+    { key: "radiusTop", label: "顶半径", allowZero: true },
     { key: "height", label: "高" },
   ],
   sphere: [{ key: "radius", label: "半径" }],
@@ -145,5 +150,5 @@ export function isPrimitiveNode(node: ModelNode): node is PrimitiveNode {
 
 /** 判断形状是否为可摆放的形状。 */
 export function isPlaceableShape(shape: string): shape is PlaceableShape {
-  return shape === "box" || shape === "cylinder";
+  return (PLACEABLE_SHAPES as readonly string[]).includes(shape);
 }

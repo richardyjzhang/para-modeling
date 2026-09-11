@@ -33,39 +33,40 @@ function nextName(nodes: ModelNode[], shape: PlaceableShape): string {
   return `${prefix}_${max + 1}`;
 }
 
+/** 新建图元的默认数字尺寸，存库时再转成表达式字符串。 */
+const DEFAULT_DIMS: Record<PlaceableShape, Record<string, number>> = {
+  box: { x: 200, y: 200, z: 200 },
+  cylinder: { radius: 50, height: 200 },
+  cone: { radiusBottom: 100, radiusTop: 50, height: 200 },
+  sphere: { radius: 100 },
+  torus: { radius: 120, tubeRadius: 30 },
+};
+
+function stringifyDims(nums: Record<string, number>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(nums)) {
+    out[key] = String(value);
+  }
+  return out;
+}
+
 /**
  * 新建图元的默认值。
  * - dims 一律存表达式字符串（即使现在只是数字），避免第 11 期参数化返工。
- * - rot 本期 UI 不改，但字段先占上，第 4 期直接用。
  * - pos.z = 高度/2：几何中心在原点，抬高半高才能「坐」在 Z=0 地面上。
  */
 function defaultPrimitive(shape: PlaceableShape, name: string): PrimitiveNode {
-  const id = newNodeId();
-  const rot: Vec3 = [0, 0, 0];
-  if (shape === "box") {
-    const dims = { x: "200", y: "200", z: "200" };
-    const height = primitiveHeight(shape, { x: 200, y: 200, z: 200 });
-    return {
-      id,
-      name,
-      parentId: null,
-      nodeType: "primitive",
-      shape: "box",
-      dims,
-      transform: { pos: [0, 0, height / 2], rot },
-    };
-  }
-  const dims = { radius: "50", height: "200" };
-  const height = primitiveHeight(shape, { radius: 50, height: 200 });
+  const nums = DEFAULT_DIMS[shape];
+  const height = primitiveHeight(shape, nums);
   return {
-    id,
+    id: newNodeId(),
     name,
     parentId: null,
     nodeType: "primitive",
-    shape: "cylinder",
-    dims,
-    transform: { pos: [0, 0, height / 2], rot },
-  };
+    shape,
+    dims: stringifyDims(nums),
+    transform: { pos: [0, 0, height / 2], rot: [0, 0, 0] },
+  } as PrimitiveNode;
 }
 
 /** 模型树状态。 */
@@ -107,6 +108,13 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     node.transform.pos = [pos[0], pos[1], pos[2]];
   }
 
+  /** 更新图元旋转（角度制，X → Y → Z）。 */
+  function updateRotation(id: string, rot: Vec3) {
+    const node = nodes.value.find((item) => item.id === id);
+    if (!node) return;
+    node.transform.rot = [rot[0], rot[1], rot[2]];
+  }
+
   return {
     nodes,
     selectedId,
@@ -115,5 +123,6 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     select,
     updateDims,
     updatePosition,
+    updateRotation,
   };
 });

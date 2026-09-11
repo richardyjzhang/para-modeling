@@ -30,12 +30,22 @@ export function evalNumericLiteral(expr: string): EvalResult {
   return { ok: true, value };
 }
 
-/** 求值正数表达式。 */
+/** 求值正数表达式（必须 > 0）。 */
 export function evalPositiveDim(expr: string): EvalResult {
   const result = evalNumericLiteral(expr);
   if (!result.ok) return result;
   if (result.value <= 0) {
     return { ok: false, message: "尺寸必须大于 0" };
+  }
+  return result;
+}
+
+/** 求值非负尺寸（允许 0，供圆台顶半径用）。 */
+export function evalNonNegativeDim(expr: string): EvalResult {
+  const result = evalNumericLiteral(expr);
+  if (!result.ok) return result;
+  if (result.value < 0) {
+    return { ok: false, message: "尺寸不能为负" };
   }
   return result;
 }
