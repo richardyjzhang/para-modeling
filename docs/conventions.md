@@ -17,6 +17,7 @@
 | 数据库表/字段名 | snake_case（如 `template_id`、`sort_order`）                               |
 | API 路径   | 复数名词、kebab-case（如 `/api/projects`、`/api/component-templates`）          |
 | 模板 id    | `tpl_` 前缀 + uuid（如 `tpl_3f2a…`）                                        |
+| 模型节点 id  | `node_` 前缀 + uuid（如 `node_3f2a…`）                                      |
 | 表达式      | 存字符串；常数也写成字符串（`"300"`）；乘方用 `^`；语法与函数白名单见 `design.md` 4.1               |
 
 
@@ -39,7 +40,7 @@
 
 ### 2.2 图元类型 `shape` 及其 `dims` 字段
 
-`dims` 里所有值均为表达式字符串。
+`dims` 里所有值均为表达式字符串。各图元的参数含义、局部坐标系、与 Three.js 默认几何的差异见 [`docs/primitives.md`](primitives.md)（几何细节只在那份文档维护）。
 
 
 | shape        | dims 字段                               | 说明                                 |
@@ -91,7 +92,13 @@
 
 | 字段            | 说明                                       |
 | ------------- | ---------------------------------------- |
+| `id`          | 节点唯一标识，见 §1「模型节点 id」                      |
+| `name`        | 显示名称（如 `box_1`）                          |
+| `parentId`    | 父节点 `id`；挂在树根下时为 `null`                   |
 | `transform`   | 与模板同构 `{ pos, rot }`；**工程侧存具体数字**（不是表达式） |
+| `shape`       | 仅 `primitive`；取值见 §2.2                    |
+| `dims`        | 仅 `primitive`；表达式字符串，字段随 `shape` 而异       |
+| `templateId`  | 仅 `instance`；指向元件模板                       |
 | `paramValues` | `{ "参数名": 数值 }`，仅 `instance` 节点有         |
 
 

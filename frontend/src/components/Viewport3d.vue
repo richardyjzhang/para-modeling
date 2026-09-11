@@ -1,21 +1,36 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { storeToRefs } from "pinia";
+import {
+  createPrimitiveGeometry,
+  evaluatePrimitiveDims,
+} from "../core/geometry";
+import { isPrimitiveNode } from "../core/types";
+import { useModelTreeStore } from "../stores/modelTree";
 
 const containerRef = ref<HTMLDivElement | null>(null);
+const store = useModelTreeStore();
+const { nodes } = storeToRefs(store);
 
 let renderer: THREE.WebGLRenderer | null = null;
 let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let controls: OrbitControls | null = null;
-let cubeGeo: THREE.BoxGeometry | null = null;
-let cubeMat: THREE.MeshStandardMaterial | null = null;
 let gridHelper: THREE.GridHelper | null = null;
 let axesHelper: THREE.AxesHelper | null = null;
+let modelRoot: THREE.Group | null = null;
 let rafId = 0;
 let resizeObserver: ResizeObserver | null = null;
 
+/** 临时指定的图元颜色 */
+const MESH_COLORS: Record<string, number> = {
+  box: 0x3b82f6,
+  cylinder: 0x10b981,
+};
+
+/** 同步容器尺寸到相机 */
 function syncSize() {
   const el = containerRef.value;
   if (!el || !renderer || !camera) return;
@@ -27,6 +42,7 @@ function syncSize() {
   renderer.setSize(width, height);
 }
 
+/** 动画帧渲染 */
 function animate() {
   rafId = requestAnimationFrame(animate);
   // 阻尼需要每帧调用 update，否则旋转/平移会"卡住"
@@ -36,11 +52,62 @@ function animate() {
   }
 }
 
+/** 释放材质资源 */
 function disposeMaterial(material: THREE.Material | THREE.Material[]) {
   if (Array.isArray(material)) {
     for (const item of material) item.dispose();
   } else {
     material.dispose();
+  }
+}
+
+/** 清空模型根节点 */
+function clearModelRoot() {
+  if (!modelRoot) return;
+  const children = [...modelRoot.children];
+  for (const child of children) {
+    modelRoot.remove(child);
+    if (child instanceof THREE.Mesh) {
+      child.geometry.dispose();
+      disposeMaterial(child.material);
+    }
+  }
+}
+
+/** 重建图元网格 */
+function rebuildMeshes() {
+  if (!modelRoot) return;
+  // 清空模型
+  clearModelRoot();
+
+  // 遍历store中的节点，重建图元网格
+  for (const node of nodes.value) {
+    if (!isPrimitiveNode(node)) continue;
+    const evalResult = evaluatePrimitiveDims(node);
+    if (!evalResult.ok) {
+      console.warn(`跳过节点 ${node.name}：${evalResult.message}`);
+      continue;
+    }
+    const geometry = createPrimitiveGeometry(node.shape, evalResult.values);
+    const material = new THREE.MeshStandardMaterial({
+      color: MESH_COLORS[node.shape] ?? 0x64748b,
+      metalness: 0.1,
+      roughness: 0.6,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(
+      node.transform.pos[0],
+      node.transform.pos[1],
+      node.transform.pos[2],
+    );
+    mesh.rotation.order = "XYZ";
+    mesh.rotation.set(
+      THREE.MathUtils.degToRad(node.transform.rot[0]),
+      THREE.MathUtils.degToRad(node.transform.rot[1]),
+      THREE.MathUtils.degToRad(node.transform.rot[2]),
+    );
+    mesh.userData.nodeId = node.id;
+    modelRoot.add(mesh);
   }
 }
 
@@ -72,7 +139,6 @@ onMounted(() => {
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.55));
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
-  // 斜上方打光，让立方体各面有明暗区分
   dirLight.position.set(400, -600, 800);
   scene.add(dirLight);
 
@@ -84,21 +150,18 @@ onMounted(() => {
   axesHelper = new THREE.AxesHelper(400);
   scene.add(axesHelper);
 
-  cubeGeo = new THREE.BoxGeometry(200, 200, 200);
-  cubeMat = new THREE.MeshStandardMaterial({
-    color: 0x3b82f6,
-    metalness: 0.1,
-    roughness: 0.6,
-  });
-  const cube = new THREE.Mesh(cubeGeo, cubeMat);
-  cube.position.set(0, 0, 100);
-  scene.add(cube);
+  modelRoot = new THREE.Group();
+  scene.add(modelRoot);
+  rebuildMeshes();
 
   syncSize();
   resizeObserver = new ResizeObserver(syncSize);
   resizeObserver.observe(el);
   animate();
 });
+
+/** 监听节点变化，重建图元网格 */
+watch(nodes, rebuildMeshes, { deep: true });
 
 onUnmounted(() => {
   // Vue 热更新 / 路由切换会反复挂载，不释放 WebGL 资源会泄漏上下文
@@ -109,10 +172,8 @@ onUnmounted(() => {
   controls?.dispose();
   controls = null;
 
-  cubeGeo?.dispose();
-  cubeMat?.dispose();
-  cubeGeo = null;
-  cubeMat = null;
+  clearModelRoot();
+  modelRoot = null;
 
   if (gridHelper) {
     gridHelper.geometry.dispose();

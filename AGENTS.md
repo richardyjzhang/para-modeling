@@ -6,6 +6,7 @@
 
 - `docs/design.md` — 总体设计与决策记录（权威版本，设计冲突以它为准）
 - `docs/conventions.md` — 数据约定与词汇表（所有枚举值/字段名/拼写的唯一登记处，新增词汇先登记再写代码）
+- `docs/primitives.md` — 内置图元几何约定（参数含义、局部坐标系；改图元时必读）
 - `docs/roadmap.md` — 20 期开发路线图与当前进度
 
 ## 技术栈（已定，除非人工要求，否则勿更换）
@@ -21,7 +22,7 @@
 ```
 para-modeling/
 ├── AGENTS.md            # 本文件
-├── docs/                # 设计文档、路线图、schema.sql
+├── docs/                # 设计文档、路线图、图元约定、schema.sql
 ├── frontend/            # Vue3 前端
 │   └── src/
 │       ├── api/         # 后端接口封装
