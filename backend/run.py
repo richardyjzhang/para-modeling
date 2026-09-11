@@ -3,14 +3,14 @@
 from flask import Flask
 from flask_cors import CORS
 
-from api.hello import hello_bp
+from api.projects import projects_bp
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
     # 开发期允许前端源跨域；生产部署时再收紧
     CORS(app)
-    app.register_blueprint(hello_bp)
+    app.register_blueprint(projects_bp)
     return app
 
 

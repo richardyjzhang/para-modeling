@@ -1,18 +1,21 @@
 /**
- * 工程模型树的前端状态。第 5 期才接后端持久化，当前纯内存，刷新即清空。
- *
- * 节点用平铺数组 + parentId（邻接表），不做成嵌套 children：
- * 和第 5 期 SQLite 邻接表同构，保存/加载不用再转换一层。
+ * 工程模型树的前端状态。节点用平铺数组 + parentId（邻接表），
+ * 与 SQLite 邻接表同构；保存时按数组顺序写 sortOrder。
  */
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
+import type { PersistNode } from "../api/projects";
 import { primitiveHeight } from "../core/geometry";
 import type {
+  GroupNode,
+  InstanceNode,
   ModelNode,
   PlaceableShape,
   PrimitiveNode,
+  PrimitiveShape,
   Vec3,
 } from "../core/types";
+import { isPlaceableShape } from "../core/types";
 
 /** 与 conventions.md 一致：`node_` 前缀 + uuid。 */
 function newNodeId(): string {
@@ -55,13 +58,18 @@ function stringifyDims(nums: Record<string, number>): Record<string, string> {
  * - dims 一律存表达式字符串（即使现在只是数字），避免第 11 期参数化返工。
  * - pos.z = 高度/2：几何中心在原点，抬高半高才能「坐」在 Z=0 地面上。
  */
-function defaultPrimitive(shape: PlaceableShape, name: string): PrimitiveNode {
+function defaultPrimitive(
+  shape: PlaceableShape,
+  name: string,
+  sortOrder: number,
+): PrimitiveNode {
   const nums = DEFAULT_DIMS[shape];
   const height = primitiveHeight(shape, nums);
   return {
     id: newNodeId(),
     name,
     parentId: null,
+    sortOrder,
     nodeType: "primitive",
     shape,
     dims: stringifyDims(nums),
@@ -69,24 +77,105 @@ function defaultPrimitive(shape: PlaceableShape, name: string): PrimitiveNode {
   } as PrimitiveNode;
 }
 
+function persistToModelNode(node: PersistNode): ModelNode {
+  if (node.nodeType === "primitive") {
+    if (!node.shape || !isPlaceableShape(node.shape) || !node.dims) {
+      throw new Error(`节点 ${node.id} 缺少有效的 shape / dims`);
+    }
+    return {
+      id: node.id,
+      name: node.name,
+      parentId: node.parentId,
+      sortOrder: node.sortOrder,
+      nodeType: "primitive",
+      shape: node.shape as PrimitiveShape,
+      dims: node.dims,
+      transform: {
+        pos: [...node.transform.pos] as Vec3,
+        rot: [...node.transform.rot] as Vec3,
+      },
+    } as PrimitiveNode;
+  }
+  if (node.nodeType === "instance") {
+    if (!node.templateId || !node.paramValues) {
+      throw new Error(`节点 ${node.id} 缺少 templateId / paramValues`);
+    }
+    const instance: InstanceNode = {
+      id: node.id,
+      name: node.name,
+      parentId: node.parentId,
+      sortOrder: node.sortOrder,
+      nodeType: "instance",
+      templateId: node.templateId,
+      paramValues: { ...node.paramValues },
+      transform: {
+        pos: [...node.transform.pos] as Vec3,
+        rot: [...node.transform.rot] as Vec3,
+      },
+    };
+    return instance;
+  }
+  const group: GroupNode = {
+    id: node.id,
+    name: node.name,
+    parentId: node.parentId,
+    sortOrder: node.sortOrder,
+    nodeType: "group",
+    transform: {
+      pos: [...node.transform.pos] as Vec3,
+      rot: [...node.transform.rot] as Vec3,
+    },
+  };
+  return group;
+}
+
 /** 模型树状态。 */
 export const useModelTreeStore = defineStore("modelTree", () => {
   const nodes = ref<ModelNode[]>([]);
   const selectedId = ref<string | null>(null);
+  const dirty = ref(false);
 
   const selectedNode = computed((): ModelNode | null => {
     if (!selectedId.value) return null;
     return nodes.value.find((node) => node.id === selectedId.value) ?? null;
   });
 
-  /** 创建新图元。 */
-  function addPrimitive(shape: PlaceableShape) {
-    const node = defaultPrimitive(shape, nextName(nodes.value, shape));
-    nodes.value.push(node);
-    selectedId.value = node.id;
+  function markDirty() {
+    dirty.value = true;
   }
 
-  /** 选择节点。 */
+  function markClean() {
+    dirty.value = false;
+  }
+
+  /** 清空当前树（切换项目或离开建模页时调用）。 */
+  function clear() {
+    nodes.value = [];
+    selectedId.value = null;
+    dirty.value = false;
+  }
+
+  /** 用服务端整树替换内存状态；按 sortOrder 排序。 */
+  function loadFromServer(payload: PersistNode[]) {
+    const sorted = [...payload].sort((a, b) => a.sortOrder - b.sortOrder);
+    nodes.value = sorted.map(persistToModelNode);
+    selectedId.value = null;
+    dirty.value = false;
+  }
+
+  /** 创建新图元。 */
+  function addPrimitive(shape: PlaceableShape) {
+    const node = defaultPrimitive(
+      shape,
+      nextName(nodes.value, shape),
+      nodes.value.length,
+    );
+    nodes.value.push(node);
+    selectedId.value = node.id;
+    markDirty();
+  }
+
+  /** 选择节点（不视为未保存改动）。 */
   function select(id: string | null) {
     selectedId.value = id;
   }
@@ -99,6 +188,7 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     for (const [key, value] of Object.entries(dims)) {
       next[key] = value;
     }
+    markDirty();
   }
 
   /** 更新图元位置。 */
@@ -106,6 +196,7 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     const node = nodes.value.find((item) => item.id === id);
     if (!node) return;
     node.transform.pos = [pos[0], pos[1], pos[2]];
+    markDirty();
   }
 
   /** 更新图元旋转（角度制，X → Y → Z）。 */
@@ -113,16 +204,21 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     const node = nodes.value.find((item) => item.id === id);
     if (!node) return;
     node.transform.rot = [rot[0], rot[1], rot[2]];
+    markDirty();
   }
 
   return {
     nodes,
     selectedId,
     selectedNode,
+    dirty,
     addPrimitive,
     select,
     updateDims,
     updatePosition,
     updateRotation,
+    loadFromServer,
+    clear,
+    markClean,
   };
 });

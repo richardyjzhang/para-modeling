@@ -17,7 +17,9 @@
 | 数据库表/字段名 | snake_case（如 `template_id`、`sort_order`）                               |
 | API 路径   | 复数名词、kebab-case（如 `/api/projects`、`/api/component-templates`）          |
 | 模板 id    | `tpl_` 前缀 + uuid（如 `tpl_3f2a…`）                                        |
+| 项目 id    | `prj_` 前缀 + uuid（如 `prj_3f2a…`）                                        |
 | 模型节点 id  | `node_` 前缀 + uuid（如 `node_3f2a…`）                                      |
+| 时间字符串   | `YYYY-MM-DD HH:MM:SS`（本地时间，如 `2026-09-11 05:30:26`）；库字段用 TEXT 存     |
 | 表达式      | 存字符串；常数也写成字符串（`"300"`）；乘方用 `^`；语法与函数白名单见 `design.md` 4.1               |
 
 
@@ -90,16 +92,17 @@
 ### 3.2 节点其余字段
 
 
-| 字段            | 说明                                       |
-| ------------- | ---------------------------------------- |
-| `id`          | 节点唯一标识，见 §1「模型节点 id」                      |
-| `name`        | 显示名称（如 `box_1`）                          |
-| `parentId`    | 父节点 `id`；挂在树根下时为 `null`                   |
-| `transform`   | 与模板同构 `{ pos, rot }`；**工程侧存具体数字**（不是表达式） |
-| `shape`       | 仅 `primitive`；取值见 §2.2                    |
-| `dims`        | 仅 `primitive`；表达式字符串，字段随 `shape` 而异       |
-| `templateId`  | 仅 `instance`；指向元件模板                       |
-| `paramValues` | `{ "参数名": 数值 }`，仅 `instance` 节点有         |
+| JSON 字段         | 库字段          | 说明                                       |
+| ------------- | ------------ | ---------------------------------------- |
+| `id`          | `id`         | 节点唯一标识，见 §1「模型节点 id」                      |
+| `name`        | `name`       | 显示名称（如 `box_1`）                          |
+| `parentId`    | `parent_id`  | 父节点 `id`；挂在树根下时为 `null`                   |
+| `sortOrder`   | `sort_order` | 同级排序，从 0 起的整数；保存时按当前数组顺序重写               |
+| `transform`   | `transform`  | JSON `{ pos, rot }`；**工程侧存具体数字**（不是表达式） |
+| `shape`       | `shape`      | 仅 `primitive`；取值见 §2.2                    |
+| `dims`        | `dims`       | 仅 `primitive`；JSON，值为表达式字符串              |
+| `templateId`  | `template_id` | 仅 `instance`；指向元件模板                       |
+| `paramValues` | `param_values` | `{ "参数名": 数值 }`，仅 `instance` 节点有         |
 
 
 

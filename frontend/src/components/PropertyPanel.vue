@@ -1,3 +1,129 @@
+<template>
+  <aside class="flex h-full flex-col border-l border-slate-200 bg-white">
+    <div class="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500">
+      属性
+    </div>
+    <div v-if="selectedNode" class="min-h-0 flex-1 overflow-auto px-3 py-3 text-sm">
+      <div class="space-y-1">
+        <div class="text-xs text-slate-400">名称</div>
+        <div class="text-slate-800">{{ selectedNode.name }}</div>
+      </div>
+      <div v-if="primitive" class="mt-4 space-y-1">
+        <div class="text-xs text-slate-400">类型</div>
+        <div class="text-slate-800">{{ SHAPE_LABEL[primitive.shape] }}</div>
+      </div>
+
+      <div v-if="primitive" class="mt-4">
+        <div class="mb-2 text-xs font-semibold text-slate-500">尺寸（mm）</div>
+        <div v-for="field in dimFields" :key="field.key" class="mb-2">
+          <label class="flex items-center gap-2">
+            <span class="w-16 shrink-0 text-xs text-slate-500">{{ field.label }}</span>
+            <input
+              v-model="dimDraft[field.key]"
+              type="text"
+              :class="fieldClass(Boolean(dimErrors[field.key]))"
+              @change="commitDim(field.key)"
+              @keydown="onKeyStep($event, (dir) => stepDim(field.key, dir))"
+            />
+            <span class="flex shrink-0 flex-col">
+              <button
+                type="button"
+                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
+                @mousedown.prevent="stepDim(field.key, 1)"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
+                @mousedown.prevent="stepDim(field.key, -1)"
+              >
+                ▼
+              </button>
+            </span>
+          </label>
+          <p v-if="dimErrors[field.key]" class="ml-[4.5rem] mt-0.5 text-xs text-red-600">
+            {{ dimErrors[field.key] }}
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="mb-2 text-xs font-semibold text-slate-500">位置（mm）</div>
+        <div v-for="axis in AXES" :key="'pos-' + axis" class="mb-2">
+          <label class="flex items-center gap-2">
+            <span class="w-16 shrink-0 text-xs uppercase text-slate-500">{{ axis }}</span>
+            <input
+              v-model="posDraft[axis]"
+              type="text"
+              :class="fieldClass(Boolean(posErrors[axis]))"
+              @change="commitPos(axis)"
+              @keydown="onKeyStep($event, (dir) => stepPos(axis, dir))"
+            />
+            <span class="flex shrink-0 flex-col">
+              <button
+                type="button"
+                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
+                @mousedown.prevent="stepPos(axis, 1)"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
+                @mousedown.prevent="stepPos(axis, -1)"
+              >
+                ▼
+              </button>
+            </span>
+          </label>
+          <p v-if="posErrors[axis]" class="ml-[4.5rem] mt-0.5 text-xs text-red-600">
+            {{ posErrors[axis] }}
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="mb-2 text-xs font-semibold text-slate-500">旋转（°）</div>
+        <div v-for="axis in AXES" :key="'rot-' + axis" class="mb-2">
+          <label class="flex items-center gap-2">
+            <span class="w-16 shrink-0 text-xs uppercase text-slate-500">r{{ axis }}</span>
+            <input
+              v-model="rotDraft[axis]"
+              type="text"
+              :class="fieldClass(Boolean(rotErrors[axis]))"
+              @change="commitRot(axis)"
+              @keydown="onKeyStep($event, (dir) => stepRot(axis, dir))"
+            />
+            <span class="flex shrink-0 flex-col">
+              <button
+                type="button"
+                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
+                @mousedown.prevent="stepRot(axis, 1)"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
+                @mousedown.prevent="stepRot(axis, -1)"
+              >
+                ▼
+              </button>
+            </span>
+          </label>
+          <p v-if="rotErrors[axis]" class="ml-[4.5rem] mt-0.5 text-xs text-red-600">
+            {{ rotErrors[axis] }}
+          </p>
+        </div>
+      </div>
+    </div>
+    <p v-else class="px-3 py-3 text-xs leading-5 text-slate-400">
+      在左侧树中选中一个节点，即可改尺寸、位置和旋转。
+    </p>
+  </aside>
+</template>
+
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
 import {
@@ -212,129 +338,3 @@ function fieldClass(hasError: boolean): string {
     : `${base} border-slate-200 focus:border-blue-400`;
 }
 </script>
-
-<template>
-  <aside class="flex h-full flex-col border-l border-slate-200 bg-white">
-    <div class="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500">
-      属性
-    </div>
-    <div v-if="selectedNode" class="min-h-0 flex-1 overflow-auto px-3 py-3 text-sm">
-      <div class="space-y-1">
-        <div class="text-xs text-slate-400">名称</div>
-        <div class="text-slate-800">{{ selectedNode.name }}</div>
-      </div>
-      <div v-if="primitive" class="mt-4 space-y-1">
-        <div class="text-xs text-slate-400">类型</div>
-        <div class="text-slate-800">{{ SHAPE_LABEL[primitive.shape] }}</div>
-      </div>
-
-      <div v-if="primitive" class="mt-4">
-        <div class="mb-2 text-xs font-semibold text-slate-500">尺寸（mm）</div>
-        <div v-for="field in dimFields" :key="field.key" class="mb-2">
-          <label class="flex items-center gap-2">
-            <span class="w-16 shrink-0 text-xs text-slate-500">{{ field.label }}</span>
-            <input
-              v-model="dimDraft[field.key]"
-              type="text"
-              :class="fieldClass(Boolean(dimErrors[field.key]))"
-              @change="commitDim(field.key)"
-              @keydown="onKeyStep($event, (dir) => stepDim(field.key, dir))"
-            />
-            <span class="flex shrink-0 flex-col">
-              <button
-                type="button"
-                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
-                @mousedown.prevent="stepDim(field.key, 1)"
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
-                @mousedown.prevent="stepDim(field.key, -1)"
-              >
-                ▼
-              </button>
-            </span>
-          </label>
-          <p v-if="dimErrors[field.key]" class="ml-[4.5rem] mt-0.5 text-xs text-red-600">
-            {{ dimErrors[field.key] }}
-          </p>
-        </div>
-      </div>
-
-      <div class="mt-4">
-        <div class="mb-2 text-xs font-semibold text-slate-500">位置（mm）</div>
-        <div v-for="axis in AXES" :key="'pos-' + axis" class="mb-2">
-          <label class="flex items-center gap-2">
-            <span class="w-16 shrink-0 text-xs uppercase text-slate-500">{{ axis }}</span>
-            <input
-              v-model="posDraft[axis]"
-              type="text"
-              :class="fieldClass(Boolean(posErrors[axis]))"
-              @change="commitPos(axis)"
-              @keydown="onKeyStep($event, (dir) => stepPos(axis, dir))"
-            />
-            <span class="flex shrink-0 flex-col">
-              <button
-                type="button"
-                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
-                @mousedown.prevent="stepPos(axis, 1)"
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
-                @mousedown.prevent="stepPos(axis, -1)"
-              >
-                ▼
-              </button>
-            </span>
-          </label>
-          <p v-if="posErrors[axis]" class="ml-[4.5rem] mt-0.5 text-xs text-red-600">
-            {{ posErrors[axis] }}
-          </p>
-        </div>
-      </div>
-
-      <div class="mt-4">
-        <div class="mb-2 text-xs font-semibold text-slate-500">旋转（°）</div>
-        <div v-for="axis in AXES" :key="'rot-' + axis" class="mb-2">
-          <label class="flex items-center gap-2">
-            <span class="w-16 shrink-0 text-xs uppercase text-slate-500">r{{ axis }}</span>
-            <input
-              v-model="rotDraft[axis]"
-              type="text"
-              :class="fieldClass(Boolean(rotErrors[axis]))"
-              @change="commitRot(axis)"
-              @keydown="onKeyStep($event, (dir) => stepRot(axis, dir))"
-            />
-            <span class="flex shrink-0 flex-col">
-              <button
-                type="button"
-                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
-                @mousedown.prevent="stepRot(axis, 1)"
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                class="px-1 text-[9px] leading-none text-slate-500 hover:text-slate-800"
-                @mousedown.prevent="stepRot(axis, -1)"
-              >
-                ▼
-              </button>
-            </span>
-          </label>
-          <p v-if="rotErrors[axis]" class="ml-[4.5rem] mt-0.5 text-xs text-red-600">
-            {{ rotErrors[axis] }}
-          </p>
-        </div>
-      </div>
-    </div>
-    <p v-else class="px-3 py-3 text-xs leading-5 text-slate-400">
-      在左侧树中选中一个节点，即可改尺寸、位置和旋转。
-    </p>
-  </aside>
-</template>

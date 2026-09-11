@@ -1,3 +1,7 @@
+<template>
+  <div ref="containerRef" class="h-full w-full overflow-hidden" />
+</template>
+
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import * as THREE from "three";
@@ -196,7 +200,3 @@ onUnmounted(() => {
   camera = null;
 });
 </script>
-
-<template>
-  <div ref="containerRef" class="h-full w-full overflow-hidden" />
-</template>

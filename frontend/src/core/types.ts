@@ -40,6 +40,7 @@ type ModelNodeBase = {
   id: string;
   name: string;
   parentId: string | null;
+  sortOrder: number;
   transform: Transform;
 };
 

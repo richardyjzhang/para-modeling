@@ -1,10 +1,3 @@
-<script setup lang="ts">
-import { useModelTreeStore } from "../stores/modelTree";
-import { isPrimitiveNode, SHAPE_LABEL } from "../core/types";
-
-const store = useModelTreeStore();
-</script>
-
 <template>
   <aside class="flex h-full flex-col border-r border-slate-200 bg-white">
     <div class="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500">
@@ -34,3 +27,10 @@ const store = useModelTreeStore();
     </p>
   </aside>
 </template>
+
+<script setup lang="ts">
+import { useModelTreeStore } from "../stores/modelTree";
+import { isPrimitiveNode, SHAPE_LABEL } from "../core/types";
+
+const store = useModelTreeStore();
+</script>
