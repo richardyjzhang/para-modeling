@@ -74,6 +74,7 @@ function defaultPrimitive(
     shape,
     dims: stringifyDims(nums),
     transform: { pos: [0, 0, height / 2], rot: [0, 0, 0] },
+    color: null,
   } as PrimitiveNode;
 }
 
@@ -94,6 +95,7 @@ function persistToModelNode(node: PersistNode): ModelNode {
         pos: [...node.transform.pos] as Vec3,
         rot: [...node.transform.rot] as Vec3,
       },
+      color: node.color ?? null,
     } as PrimitiveNode;
   }
   if (node.nodeType === "instance") {
@@ -112,6 +114,7 @@ function persistToModelNode(node: PersistNode): ModelNode {
         pos: [...node.transform.pos] as Vec3,
         rot: [...node.transform.rot] as Vec3,
       },
+      color: node.color ?? null,
     };
     return instance;
   }
@@ -125,6 +128,7 @@ function persistToModelNode(node: PersistNode): ModelNode {
       pos: [...node.transform.pos] as Vec3,
       rot: [...node.transform.rot] as Vec3,
     },
+    color: node.color ?? null,
   };
   return group;
 }

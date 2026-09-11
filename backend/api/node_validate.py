@@ -1,6 +1,11 @@
 """模型树节点请求体校验。通过返回 None，失败返回错误文案。"""
 
+import re
+
 NODE_TYPES = {"group", "primitive", "instance"}
+
+# "#" + 6 位十六进制，大小写均可（与 conventions.md §3.2 一致）
+COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
 """
@@ -46,6 +51,11 @@ def validate_node(node, index: int) -> str | None:
     err = validate_transform(node.get("transform"))
     if err:
         return f"{prefix}.{err}"
+    color = node.get("color")
+    if color is not None and (
+        not isinstance(color, str) or not COLOR_RE.fullmatch(color)
+    ):
+        return f"{prefix}.color 必须是 # 开头的 6 位十六进制颜色（如 #ff8800）或 null"
 
     # 校验图元节点
     if node_type == "primitive":

@@ -22,7 +22,9 @@ CREATE TABLE model_node (        -- 邻接表，见 design.md §5
   shape        TEXT,             -- 仅 primitive
   dims         TEXT,             -- 仅 primitive，JSON，值为表达式字符串
   template_id  TEXT,             -- 仅 instance（预埋）
-  param_values TEXT              -- 仅 instance，JSON（预埋）
+  param_values TEXT,             -- 仅 instance，JSON（预埋）
+  color        TEXT              -- 可空；"#rrggbb" 十六进制颜色，null 时按图元类型默认色渲染
 );
+-- 已有数据库升级用：ALTER TABLE model_node ADD COLUMN color TEXT;
 CREATE INDEX idx_model_node_project ON model_node(project_id);
 CREATE INDEX idx_model_node_parent  ON model_node(parent_id);

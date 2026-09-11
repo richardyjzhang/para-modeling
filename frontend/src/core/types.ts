@@ -42,6 +42,8 @@ type ModelNodeBase = {
   parentId: string | null;
   sortOrder: number;
   transform: Transform;
+  /** 可空；"#rrggbb" 十六进制颜色。null 时按图元类型默认色渲染。 */
+  color: string | null;
 };
 
 export type GroupNode = ModelNodeBase & {

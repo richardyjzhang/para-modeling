@@ -103,6 +103,7 @@
 | `dims`        | `dims`       | 仅 `primitive`；JSON，值为表达式字符串              |
 | `templateId`  | `template_id` | 仅 `instance`；指向元件模板                       |
 | `paramValues` | `param_values` | `{ "参数名": 数值 }`，仅 `instance` 节点有         |
+| `color`       | `color`      | 可空；`#` 开头的 6 位十六进制颜色字符串（如 `#ff8800`，大小写均可）；为 null 时前端按图元类型默认色渲染。目前仅 `primitive` 渲染用到 |
 
 
 

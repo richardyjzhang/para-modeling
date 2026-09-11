@@ -37,6 +37,20 @@ const MESH_COLORS: Record<string, number> = {
   torus: 0x06b6d4,
 };
 
+/** 节点自定义颜色格式："#" + 6 位十六进制（与 conventions.md §3.2 一致）。 */
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** 取节点渲染色：color 合法用 color，否则退回图元类型默认色。 */
+function meshColor(node: {
+  color: string | null;
+  shape: string;
+}): THREE.ColorRepresentation {
+  if (node.color && HEX_COLOR_RE.test(node.color)) {
+    return node.color;
+  }
+  return MESH_COLORS[node.shape] ?? 0x64748b;
+}
+
 /** 同步容器尺寸到相机 */
 function syncSize() {
   const el = containerRef.value;
@@ -97,7 +111,7 @@ function rebuildMeshes() {
     }
     const geometry = createPrimitiveGeometry(node.shape, evalResult.values);
     const material = new THREE.MeshStandardMaterial({
-      color: MESH_COLORS[node.shape] ?? 0x64748b,
+      color: meshColor(node),
       metalness: 0.1,
       roughness: 0.6,
     });

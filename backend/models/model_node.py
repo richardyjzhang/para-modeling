@@ -17,6 +17,7 @@ def row_to_node(row) -> dict:
         "dims": json.loads(row["dims"]) if row["dims"] else None,
         "templateId": row["template_id"],
         "paramValues": json.loads(row["param_values"]) if row["param_values"] else None,
+        "color": row["color"],
     }
 
 
@@ -24,7 +25,7 @@ def list_nodes(project_id: str) -> list[dict]:
     with get_connection() as conn:
         rows = conn.execute(
             "SELECT id, parent_id, node_type, name, sort_order, transform, "
-            "shape, dims, template_id, param_values "
+            "shape, dims, template_id, param_values, color "
             "FROM model_node WHERE project_id = ? ORDER BY sort_order ASC",
             (project_id,),
         ).fetchall()
@@ -50,8 +51,8 @@ def replace_nodes(project_id: str, nodes: list[dict]) -> bool:
             conn.execute(
                 "INSERT INTO model_node ("
                 "id, project_id, parent_id, node_type, name, sort_order, "
-                "transform, shape, dims, template_id, param_values"
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "transform, shape, dims, template_id, param_values, color"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     node["id"],
                     project_id,
@@ -66,6 +67,7 @@ def replace_nodes(project_id: str, nodes: list[dict]) -> bool:
                     json.dumps(param_values, ensure_ascii=False)
                     if param_values is not None
                     else None,
+                    node.get("color"),
                 ),
             )
         conn.execute(

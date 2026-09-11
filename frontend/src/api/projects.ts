@@ -20,6 +20,7 @@ export type PersistNode = {
   dims: Record<string, string> | null;
   templateId: string | null;
   paramValues: Record<string, number> | null;
+  color: string | null;
 };
 
 export function listProjects(): Promise<{ projects: Project[] }> {
@@ -63,6 +64,7 @@ export function modelNodesToPersist(nodes: ModelNode[]): PersistNode[] {
       name: node.name,
       sortOrder: index,
       transform: node.transform,
+      color: node.color,
     };
     if (node.nodeType === "primitive") {
       return {
