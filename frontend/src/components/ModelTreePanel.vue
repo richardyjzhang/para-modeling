@@ -9,7 +9,12 @@
     >
       模型树
     </div>
-    <div v-if="roots.length > 0" class="min-h-0 flex-1 overflow-auto py-1">
+    <div
+      v-if="roots.length > 0"
+      class="min-h-0 flex-1 overflow-auto py-1"
+      @dragover="onBlankDragOver"
+      @drop="onBlankDrop"
+    >
       <ModelTreeNode
         v-for="node in roots"
         :key="node.id"
@@ -18,7 +23,12 @@
         @node-context="onNodeContext"
       />
     </div>
-    <p v-else class="px-3 py-3 text-xs leading-5 text-slate-400">
+    <p
+      v-else
+      class="px-3 py-3 text-xs leading-5 text-slate-400"
+      @dragover="onBlankDragOver"
+      @drop="onBlankDrop"
+    >
       还没有节点。点顶部按钮添加图元或分组，或在此处右键新建分组。
     </p>
     <TreeContextMenu
@@ -73,6 +83,21 @@ function onNodeContext(event: MouseEvent, nodeId: string) {
 /* 当空白处右键时，显示上下文菜单。 */
 function onBlankContext(event: MouseEvent) {
   menu.value = { x: event.clientX, y: event.clientY, nodeId: null };
+}
+
+/* 拖到树空白处：移到根级末尾。节点行已 stopPropagation，不会落到这里。 */
+function onBlankDragOver(event: DragEvent) {
+  const dragId = store.draggingId;
+  if (!dragId || !store.canMoveTo(dragId, null) || !event.dataTransfer) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+}
+
+function onBlankDrop(event: DragEvent) {
+  event.preventDefault();
+  const dragId = store.draggingId;
+  if (!dragId) return;
+  store.moveNode(dragId, null, store.childrenOf(null).length);
 }
 
 /* 当上下文菜单选择时，执行操作。 */

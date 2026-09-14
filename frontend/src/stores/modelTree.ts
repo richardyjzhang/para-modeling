@@ -202,6 +202,8 @@ export const useModelTreeStore = defineStore("modelTree", () => {
   const nodes = ref<ModelNode[]>([]);
   const selectedId = ref<string | null>(null);
   const dirty = ref(false);
+  /** 正在拖拽的节点 id；dragover 阶段读不到 dataTransfer 内容，所以放 store。 */
+  const draggingId = ref<string | null>(null);
 
   const selectedNode = computed((): ModelNode | null => {
     if (!selectedId.value) return null;
@@ -222,6 +224,7 @@ export const useModelTreeStore = defineStore("modelTree", () => {
   function clear() {
     nodes.value = [];
     selectedId.value = null;
+    draggingId.value = null;
     dirty.value = false;
   }
 
@@ -318,6 +321,70 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     selectedId.value = id;
   }
 
+  /** 开始拖拽节点。 */
+  function beginDrag(id: string) {
+    draggingId.value = id;
+  }
+
+  /** 结束拖拽节点。 */
+  function endDrag() {
+    draggingId.value = null;
+  }
+
+  /**
+   * 节点能否以 newParentId 为父。不能成为自己的子节点，也不能挂到自己的后代分组下。
+   */
+  function canMoveTo(id: string, newParentId: string | null): boolean {
+    if (id === newParentId) return false;
+    const node = nodes.value.find((item) => item.id === id);
+    if (!node) return false;
+    if (newParentId === null) return true;
+    const parent = nodes.value.find((item) => item.id === newParentId);
+    if (!parent || parent.nodeType !== "group") return false;
+    return !descendantIds(id).includes(newParentId);
+  }
+
+  /**
+   * 把节点移到 newParentId 下的 index 位置（0-based，插到该下标之前；等于子节点数即末尾）。
+   * 非法移动返回 false。同级内先摘除再算插入下标，避免偏移。
+   */
+  function moveNode(
+    id: string,
+    newParentId: string | null,
+    index: number,
+  ): boolean {
+    if (!canMoveTo(id, newParentId)) return false;
+    const node = nodes.value.find((item) => item.id === id);
+    if (!node) return false;
+
+    const oldParentId = node.parentId;
+    const sameParent = oldParentId === newParentId;
+    const oldIndex = childrenOf(oldParentId).findIndex((item) => item.id === id);
+    if (oldIndex < 0) return false;
+
+    const destExcluding = childrenOf(newParentId).filter((item) => item.id !== id);
+    let insertIndex = index;
+    if (sameParent && insertIndex > oldIndex) insertIndex -= 1;
+    insertIndex = Math.max(0, Math.min(insertIndex, destExcluding.length));
+
+    if (sameParent && insertIndex === oldIndex) {
+      selectedId.value = id;
+      return true;
+    }
+
+    node.parentId = newParentId;
+    for (let i = 0; i < destExcluding.length; i++) {
+      destExcluding[i].sortOrder = i < insertIndex ? i : i + 1;
+    }
+    node.sortOrder = insertIndex;
+
+    if (!sameParent) reindexSiblings(oldParentId);
+    reindexSiblings(newParentId);
+    selectedId.value = id;
+    markDirty();
+    return true;
+  }
+
   /* 重命名节点。 */
   function renameNode(id: string, name: string) {
     const trimmed = name.trim();
@@ -410,6 +477,7 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     selectedId,
     selectedNode,
     dirty,
+    draggingId,
     childrenOf,
     descendantIds,
     addPrimitive,
@@ -418,6 +486,10 @@ export const useModelTreeStore = defineStore("modelTree", () => {
     removeNode,
     duplicateNode,
     select,
+    beginDrag,
+    endDrag,
+    canMoveTo,
+    moveNode,
     updateDims,
     updatePosition,
     updateRotation,

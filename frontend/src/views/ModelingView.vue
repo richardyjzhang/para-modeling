@@ -14,7 +14,7 @@
           <h1 class="truncate text-sm font-semibold text-slate-900">
             {{ project?.name ?? "建模" }}
           </h1>
-          <span class="shrink-0 text-xs text-slate-400">第 6 期 · 树操作</span>
+          <span class="shrink-0 text-xs text-slate-400">第 7 期 · 选中与联动</span>
         </div>
         <div class="flex items-center gap-1.5">
           <button
