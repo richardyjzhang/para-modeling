@@ -1,6 +1,7 @@
 <template>
   <div>
     <div
+      ref="rowRef"
       class="flex w-full items-center border-y-2 py-1 pr-3 text-left text-sm"
       :class="rowClass"
       :style="{ paddingLeft: `${8 + depth * 14}px` }"
@@ -38,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { isGroupNode, isPrimitiveNode, SHAPE_LABEL, type ModelNode } from "../core/types";
 import { useModelTreeStore } from "../stores/modelTree";
 
@@ -58,6 +59,23 @@ type DropZone = "before" | "inside" | "after";
 const store = useModelTreeStore();
 const expanded = ref(true);
 const hoverZone = ref<DropZone | null>(null);
+const rowRef = ref<HTMLElement | null>(null);
+
+/** 3D 点选时展开祖先链，并把选中行滚进可视区。immediate：折叠组展开后子节点才挂载，需在挂载时立刻滚。 */
+watch(
+  () => store.selectedId,
+  (id) => {
+    if (!id) return;
+    if (isGroupNode(props.node) && store.descendantIds(props.node.id).includes(id)) {
+      expanded.value = true;
+    }
+    if (id !== props.node.id) return;
+    void nextTick(() => {
+      rowRef.value?.scrollIntoView({ block: "nearest" });
+    });
+  },
+  { immediate: true },
+);
 
 const children = computed(() => store.childrenOf(props.node.id));
 

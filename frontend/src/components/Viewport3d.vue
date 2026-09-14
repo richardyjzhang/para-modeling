@@ -6,6 +6,11 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { storeToRefs } from "pinia";
 import {
   createPrimitiveGeometry,
@@ -16,17 +21,26 @@ import { useModelTreeStore } from "../stores/modelTree";
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const store = useModelTreeStore();
-const { nodes } = storeToRefs(store);
+const { nodes, selectedId } = storeToRefs(store);
 
 let renderer: THREE.WebGLRenderer | null = null;
 let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let controls: OrbitControls | null = null;
+let composer: EffectComposer | null = null;
+let outlinePass: OutlinePass | null = null;
 let gridHelper: THREE.GridHelper | null = null;
 let axesHelper: THREE.AxesHelper | null = null;
 let modelRoot: THREE.Group | null = null;
 let rafId = 0;
 let resizeObserver: ResizeObserver | null = null;
+
+/** 按下到抬起位移超过该像素视为 OrbitControls 拖拽，不触发点选。 */
+const CLICK_PIXEL_THRESHOLD = 5;
+
+const pointerDown = { x: 0, y: 0 };
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
 
 /** 临时指定的图元颜色 */
 const MESH_COLORS: Record<string, number> = {
@@ -51,7 +65,7 @@ function meshColor(node: {
   return MESH_COLORS[node.shape] ?? 0x64748b;
 }
 
-/** 同步容器尺寸到相机 */
+/** 同步容器尺寸到相机 / 后处理。 */
 function syncSize() {
   const el = containerRef.value;
   if (!el || !renderer || !camera) return;
@@ -61,6 +75,10 @@ function syncSize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
+  if (composer) {
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.setSize(width, height);
+  }
 }
 
 /** 动画帧渲染 */
@@ -68,9 +86,7 @@ function animate() {
   rafId = requestAnimationFrame(animate);
   // 阻尼需要每帧调用 update，否则旋转/平移会"卡住"
   controls?.update();
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera);
-  }
+  composer?.render();
 }
 
 /** 释放材质资源 */
@@ -148,13 +164,58 @@ function buildNode(node: ModelNode, parent: THREE.Object3D) {
   if (mesh) parent.add(mesh);
 }
 
-/** 重建图元网格 */
+/** 当前应描边的节点 id：选中自身；若是分组则并入全部后代。 */
+function highlightIds(): Set<string> {
+  const id = selectedId.value;
+  if (!id) return new Set();
+  return new Set([id, ...store.descendantIds(id)]);
+}
+
+/** 把 OutlinePass 的选中对象换成当前高亮集合对应的 Mesh。 */
+function applyHighlight() {
+  if (!outlinePass || !modelRoot) return;
+  const ids = highlightIds();
+  const selected: THREE.Object3D[] = [];
+  modelRoot.traverse((child) => {
+    if (child instanceof THREE.Mesh && ids.has(child.userData.nodeId)) {
+      selected.push(child);
+    }
+  });
+  outlinePass.selectedObjects = selected;
+}
+
+/** 重建图元网格，并重新施加轮廓高亮（mesh 是新对象）。 */
 function rebuildMeshes() {
   if (!modelRoot) return;
   clearModelRoot();
   for (const node of store.childrenOf(null)) {
     buildNode(node, modelRoot);
   }
+  applyHighlight();
+}
+
+function onPointerDown(event: PointerEvent) {
+  if (event.button !== 0) return;
+  pointerDown.x = event.clientX;
+  pointerDown.y = event.clientY;
+}
+
+function onPointerUp(event: PointerEvent) {
+  if (event.button !== 0 || !renderer || !camera || !modelRoot) return;
+  const dx = event.clientX - pointerDown.x;
+  const dy = event.clientY - pointerDown.y;
+  if (dx * dx + dy * dy > CLICK_PIXEL_THRESHOLD * CLICK_PIXEL_THRESHOLD) return;
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+  ndc.set(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObject(modelRoot, true);
+  const hit = hits.find((item) => typeof item.object.userData.nodeId === "string");
+  store.select(hit ? (hit.object.userData.nodeId as string) : null);
 }
 
 onMounted(() => {
@@ -178,6 +239,25 @@ onMounted(() => {
   renderer.domElement.style.display = "block";
   el.appendChild(renderer.domElement);
 
+  // Composer 画到离屏目标，WebGLRenderer 的 antialias 不再生效；给目标开 MSAA。
+  const composerTarget = new THREE.WebGLRenderTarget(1, 1, {
+    type: THREE.HalfFloatType,
+    samples: 4,
+  });
+  composer = new EffectComposer(renderer, composerTarget);
+  composer.addPass(new RenderPass(scene, camera));
+  outlinePass = new OutlinePass(new THREE.Vector2(1, 1), scene, camera);
+  outlinePass.overlayMaterial.blending = THREE.NormalBlending;
+  outlinePass.edgeStrength = 2.5;
+  outlinePass.edgeGlow = 1.5;
+  outlinePass.edgeThickness = 1;
+  outlinePass.pulsePeriod = 0;
+  outlinePass.visibleEdgeColor.set(0xc2410c);
+  outlinePass.hiddenEdgeColor.set(0x9a3412);
+  composer.addPass(outlinePass);
+  composer.addPass(new OutputPass());
+  composer.addPass(new SMAAPass(1, 1));
+
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -200,6 +280,9 @@ onMounted(() => {
   scene.add(modelRoot);
   rebuildMeshes();
 
+  renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointerup", onPointerUp);
+
   syncSize();
   resizeObserver = new ResizeObserver(syncSize);
   resizeObserver.observe(el);
@@ -208,6 +291,7 @@ onMounted(() => {
 
 /** 监听节点变化，重建图元网格 */
 watch(nodes, rebuildMeshes, { deep: true });
+watch(selectedId, applyHighlight);
 
 onUnmounted(() => {
   // Vue 热更新 / 路由切换会反复挂载，不释放 WebGL 资源会泄漏上下文
@@ -215,11 +299,21 @@ onUnmounted(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
 
+  renderer?.domElement.removeEventListener("pointerdown", onPointerDown);
+  renderer?.domElement.removeEventListener("pointerup", onPointerUp);
+
   controls?.dispose();
   controls = null;
 
   clearModelRoot();
   modelRoot = null;
+
+  if (outlinePass) {
+    outlinePass.selectedObjects = [];
+    outlinePass = null;
+  }
+  composer?.dispose();
+  composer = null;
 
   if (gridHelper) {
     gridHelper.geometry.dispose();
