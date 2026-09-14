@@ -96,9 +96,9 @@
 | ------------- | ------------ | ---------------------------------------- |
 | `id`          | `id`         | 节点唯一标识，见 §1「模型节点 id」                      |
 | `name`        | `name`       | 显示名称（如 `box_1`）                          |
-| `parentId`    | `parent_id`  | 父节点 `id`；挂在树根下时为 `null`                   |
-| `sortOrder`   | `sort_order` | 同级排序，从 0 起的整数；保存时按当前数组顺序重写               |
-| `transform`   | `transform`  | JSON `{ pos, rot }`；**工程侧存具体数字**（不是表达式） |
+| `parentId`    | `parent_id`  | 父节点 `id`；必须指向 `group`；挂在树根下时为 `null`   |
+| `sortOrder`   | `sort_order` | 同级排序，从 0 起的整数；每个父节点下单独编号               |
+| `transform`   | `transform`  | JSON `{ pos, rot }`；**工程侧存具体数字**（不是表达式）；值为**相对父节点的局部坐标**（根节点相对世界） |
 | `shape`       | `shape`      | 仅 `primitive`；取值见 §2.2                    |
 | `dims`        | `dims`       | 仅 `primitive`；JSON，值为表达式字符串              |
 | `templateId`  | `template_id` | 仅 `instance`；指向元件模板                       |

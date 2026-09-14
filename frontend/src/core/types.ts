@@ -146,6 +146,11 @@ export const SHAPE_LABEL: Record<PrimitiveShape, string> = {
   torus: "圆环",
 };
 
+/** 判断节点是否为分组节点。 */
+export function isGroupNode(node: ModelNode): node is GroupNode {
+  return node.nodeType === "group";
+}
+
 /** 判断节点是否为基础图元节点。 */
 export function isPrimitiveNode(node: ModelNode): node is PrimitiveNode {
   return node.nodeType === "primitive";

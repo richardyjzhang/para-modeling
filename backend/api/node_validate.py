@@ -97,9 +97,22 @@ def validate_nodes(nodes) -> str | None:
         if node_id in ids:
             return f"nodes[{index}].id 重复：{node_id}"
         ids.add(node_id)
-    id_set = {node["id"] for node in nodes}
+    all_ids = {node["id"]: node for node in nodes}
+    parent_of = {node["id"]: node.get("parentId") for node in nodes}
     for index, node in enumerate(nodes):
         parent_id = node.get("parentId")
-        if parent_id is not None and parent_id not in id_set:
+        if parent_id is None:
+            continue
+        if parent_id not in all_ids:
             return f"nodes[{index}].parentId 指向不存在的节点"
+        if all_ids[parent_id].get("nodeType") != "group":
+            return f"nodes[{index}].parentId 必须指向 group 节点"
+        # 沿父链上行，发现回到自己或重复访问即为环
+        seen: set[str] = set()
+        current = parent_id
+        while current is not None:
+            if current == node["id"] or current in seen:
+                return f"nodes[{index}].parentId 形成循环引用"
+            seen.add(current)
+            current = parent_of.get(current)
     return None

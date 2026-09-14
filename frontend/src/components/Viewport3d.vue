@@ -11,7 +11,7 @@ import {
   createPrimitiveGeometry,
   evaluatePrimitiveDims,
 } from "../core/geometry";
-import { isPrimitiveNode } from "../core/types";
+import { isPrimitiveNode, type ModelNode, type Transform } from "../core/types";
 import { useModelTreeStore } from "../stores/modelTree";
 
 const containerRef = ref<HTMLDivElement | null>(null);
@@ -82,53 +82,78 @@ function disposeMaterial(material: THREE.Material | THREE.Material[]) {
   }
 }
 
-/** 清空模型根节点 */
+/** 释放对象树里所有 Mesh 的 geometry / material。 */
+function disposeObject3d(object: THREE.Object3D) {
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.geometry.dispose();
+      disposeMaterial(child.material);
+    }
+  });
+}
+
+/** 清空模型根节点（含子级 THREE.Group）。 */
 function clearModelRoot() {
   if (!modelRoot) return;
   const children = [...modelRoot.children];
   for (const child of children) {
     modelRoot.remove(child);
-    if (child instanceof THREE.Mesh) {
-      child.geometry.dispose();
-      disposeMaterial(child.material);
-    }
+    disposeObject3d(child);
   }
+}
+
+/** 把工程侧 transform（角度制、相对父级）施加到 Three 对象上。 */
+function applyTransform(object: THREE.Object3D, transform: Transform) {
+  object.position.set(transform.pos[0], transform.pos[1], transform.pos[2]);
+  object.rotation.order = "XYZ";
+  object.rotation.set(
+    THREE.MathUtils.degToRad(transform.rot[0]),
+    THREE.MathUtils.degToRad(transform.rot[1]),
+    THREE.MathUtils.degToRad(transform.rot[2]),
+  );
+}
+
+function buildPrimitiveMesh(node: ModelNode): THREE.Mesh | null {
+  if (!isPrimitiveNode(node)) return null;
+  const evalResult = evaluatePrimitiveDims(node);
+  if (!evalResult.ok) {
+    console.warn(`跳过节点 ${node.name}：${evalResult.message}`);
+    return null;
+  }
+  const geometry = createPrimitiveGeometry(node.shape, evalResult.values);
+  const material = new THREE.MeshStandardMaterial({
+    color: meshColor(node),
+    metalness: 0.1,
+    roughness: 0.6,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  applyTransform(mesh, node.transform);
+  mesh.userData.nodeId = node.id;
+  return mesh;
+}
+
+/** 按 parentId 递归建 THREE.Group / Mesh，子节点坐标相对父分组。 */
+function buildNode(node: ModelNode, parent: THREE.Object3D) {
+  if (node.nodeType === "group") {
+    const group = new THREE.Group();
+    applyTransform(group, node.transform);
+    group.userData.nodeId = node.id;
+    parent.add(group);
+    for (const child of store.childrenOf(node.id)) {
+      buildNode(child, group);
+    }
+    return;
+  }
+  const mesh = buildPrimitiveMesh(node);
+  if (mesh) parent.add(mesh);
 }
 
 /** 重建图元网格 */
 function rebuildMeshes() {
   if (!modelRoot) return;
-  // 清空模型
   clearModelRoot();
-
-  // 遍历store中的节点，重建图元网格
-  for (const node of nodes.value) {
-    if (!isPrimitiveNode(node)) continue;
-    const evalResult = evaluatePrimitiveDims(node);
-    if (!evalResult.ok) {
-      console.warn(`跳过节点 ${node.name}：${evalResult.message}`);
-      continue;
-    }
-    const geometry = createPrimitiveGeometry(node.shape, evalResult.values);
-    const material = new THREE.MeshStandardMaterial({
-      color: meshColor(node),
-      metalness: 0.1,
-      roughness: 0.6,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(
-      node.transform.pos[0],
-      node.transform.pos[1],
-      node.transform.pos[2],
-    );
-    mesh.rotation.order = "XYZ";
-    mesh.rotation.set(
-      THREE.MathUtils.degToRad(node.transform.rot[0]),
-      THREE.MathUtils.degToRad(node.transform.rot[1]),
-      THREE.MathUtils.degToRad(node.transform.rot[2]),
-    );
-    mesh.userData.nodeId = node.id;
-    modelRoot.add(mesh);
+  for (const node of store.childrenOf(null)) {
+    buildNode(node, modelRoot);
   }
 }
 

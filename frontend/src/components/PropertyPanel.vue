@@ -8,9 +8,9 @@
         <div class="text-xs text-slate-400">名称</div>
         <div class="text-slate-800">{{ selectedNode.name }}</div>
       </div>
-      <div v-if="primitive" class="mt-4 space-y-1">
+      <div class="mt-4 space-y-1">
         <div class="text-xs text-slate-400">类型</div>
-        <div class="text-slate-800">{{ SHAPE_LABEL[primitive.shape] }}</div>
+        <div class="text-slate-800">{{ typeLabel }}</div>
       </div>
 
       <div v-if="primitive" class="mt-4">
@@ -49,7 +49,7 @@
       </div>
 
       <div class="mt-4">
-        <div class="mb-2 text-xs font-semibold text-slate-500">位置（mm）</div>
+        <div class="mb-2 text-xs font-semibold text-slate-500">位置（mm，相对父级）</div>
         <div v-for="axis in AXES" :key="'pos-' + axis" class="mb-2">
           <label class="flex items-center gap-2">
             <span class="w-16 shrink-0 text-xs uppercase text-slate-500">{{ axis }}</span>
@@ -84,7 +84,7 @@
       </div>
 
       <div class="mt-4">
-        <div class="mb-2 text-xs font-semibold text-slate-500">旋转（°）</div>
+        <div class="mb-2 text-xs font-semibold text-slate-500">旋转（°，相对父级）</div>
         <div v-for="axis in AXES" :key="'rot-' + axis" class="mb-2">
           <label class="flex items-center gap-2">
             <span class="w-16 shrink-0 text-xs uppercase text-slate-500">r{{ axis }}</span>
@@ -119,7 +119,7 @@
       </div>
     </div>
     <p v-else class="px-3 py-3 text-xs leading-5 text-slate-400">
-      在左侧树中选中一个节点，即可改尺寸、位置和旋转。
+      在左侧树中选中一个节点，即可改位置和旋转；图元还可改尺寸。
     </p>
   </aside>
 </template>
@@ -160,6 +160,14 @@ const primitive = computed((): PrimitiveNode | null => {
   const node = selectedNode.value;
   if (!node || !isPrimitiveNode(node)) return null;
   return node;
+});
+
+const typeLabel = computed(() => {
+  const node = selectedNode.value;
+  if (!node) return "";
+  if (isPrimitiveNode(node)) return SHAPE_LABEL[node.shape];
+  if (node.nodeType === "group") return "分组";
+  return "实例";
 });
 
 const dimFields = computed(() => {

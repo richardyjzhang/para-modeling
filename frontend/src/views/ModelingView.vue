@@ -14,9 +14,16 @@
           <h1 class="truncate text-sm font-semibold text-slate-900">
             {{ project?.name ?? "建模" }}
           </h1>
-          <span class="shrink-0 text-xs text-slate-400">第 5 期 · 项目持久化</span>
+          <span class="shrink-0 text-xs text-slate-400">第 6 期 · 树操作</span>
         </div>
         <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
+            @click="store.addGroup()"
+          >
+            新建分组
+          </button>
           <button
             v-for="shape in PLACEABLE_SHAPES"
             :key="shape"

@@ -54,15 +54,16 @@ export function saveProjectNodes(
   return putJson<{ nodes: PersistNode[] }>(`/projects/${id}/nodes`, { nodes });
 }
 
-/** 保存时按数组下标重写 sortOrder。 */
+/** 模型节点转换为持久化节点。
+ * 保存时沿用节点自身的同级 sortOrder。 */
 export function modelNodesToPersist(nodes: ModelNode[]): PersistNode[] {
-  return nodes.map((node, index) => {
+  return nodes.map((node) => {
     const base = {
       id: node.id,
       parentId: node.parentId,
       nodeType: node.nodeType,
       name: node.name,
-      sortOrder: index,
+      sortOrder: node.sortOrder,
       transform: node.transform,
       color: node.color,
     };
